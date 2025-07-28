@@ -27,6 +27,8 @@ struct Cli {
     file: Option<PathBuf>,
     #[arg(short, long, help = "Hide line number")]
     no_num: bool,
+    #[arg(short = 'A', long, help = "show non-printable characters")]
+    show_all: bool,
 }
 
 fn main() {
@@ -35,7 +37,7 @@ fn main() {
 
     if let Ok(is_exist) = fs::exists(&file) {
         if is_exist && file.is_file() {
-            let (indices, contexts) = get_file_contents(&file);
+            let (indices, contexts) = get_file_contents(&file, cli.show_all);
             let combined: Vec<(Index, Context)> =
                 indices.into_iter().zip(contexts.into_iter()).collect();
             let mut table = Table::new(combined);
@@ -56,18 +58,84 @@ fn main() {
     }
 }
 
-fn get_file_contents(file: &PathBuf) -> (Vec<Index>, Vec<Context>) {
-    let contents = fs::read_to_string(file).expect("error: can't read the file.");
+fn get_file_contents(file: &PathBuf, show_all: bool) -> (Vec<Index>, Vec<Context>) {
+    let content = std::fs::read(file).expect("error: can't read the file.");
     let mut index = 0;
     let mut indices = Vec::new();
     let mut contexts = Vec::new();
 
-    for line in contents.lines() {
+    let mut line = String::new();
+    let mut prev_byte = None;
+
+    for &byte in &content {
+        match byte {
+            b'\n' => {
+                index += 1;
+                if show_all {
+                    line.push_str("󰌑"); // LF
+                }
+                contexts.push(Context {
+                    content: line.clone(),
+                });
+                line.clear();
+                prev_byte = Some(b'\n');
+            }
+            b'\r' => {
+                if show_all {
+                    line.push_str(""); // CR
+                } else {
+                    line.push('\r');
+                }
+                prev_byte = Some(b'\r');
+            }
+            b'\t' => {
+                if show_all {
+                    line.push(''); // visual tab
+                } else {
+                    line.push('\t');
+                }
+            }
+            b' ' => {
+                if show_all {
+                    line.push(''); // visual space
+                } else {
+                    line.push(' ');
+                }
+            }
+            0x00 => {
+                if show_all {
+                    line.push_str("󰟢"); // NULL
+                } else {
+                    line.push('\0');
+                }
+            }
+            0x01..=0x1F => {
+                if show_all {
+                    line.push_str(&format!("󰨖")); // substitute for control chars
+                } else {
+                    line.push(byte as char);
+                }
+            }
+            0x7F => {
+                if show_all {
+                    line.push_str(""); // DEL
+                } else {
+                    line.push(byte as char);
+                }
+            }
+            _ => {
+                line.push(byte as char);
+            }
+        }
+    }
+
+    if !line.is_empty() || prev_byte != Some(b'\n') {
         index += 1;
-        indices.push(Index { index });
-        contexts.push(Context {
-            content: line.to_string(),
-        });
+        contexts.push(Context { content: line });
+    }
+
+    for i in 1..=index {
+        indices.push(Index { index: i as u64 });
     }
 
     (indices, contexts)
