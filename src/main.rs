@@ -1,6 +1,10 @@
 use clap::Parser;
 use owo_colors::OwoColorize;
-use std::{fs, path::PathBuf};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+};
 use tabled::{
     Table, Tabled,
     settings::{
@@ -27,13 +31,17 @@ struct Cli {
     file: Option<PathBuf>,
     #[arg(short, long, help = "Hide line number")]
     no_num: bool,
-    #[arg(short = 'A', long, help = "show non-printable characters")]
+    #[arg(short = 'a', long, help = "show non-printable characters")]
     show_all: bool,
+    #[arg(short, long, help = "copy all content into a file")]
+    output: Option<PathBuf>,
 }
 
 fn main() {
     let cli: Cli = Cli::parse();
     let file: PathBuf = cli.file.unwrap();
+
+    println!("Path: {}", file.display().red());
 
     if let Ok(is_exist) = fs::exists(&file) {
         if is_exist && file.is_file() {
@@ -42,14 +50,25 @@ fn main() {
                 indices.into_iter().zip(contexts.into_iter()).collect();
             let mut table = Table::new(combined);
             table.with(Style::empty());
+
             if cli.no_num {
                 table.with(Remove::column(Columns::first()));
+                table.modify(Columns::last(), Color::FG_BRIGHT_WHITE);
                 table.modify(Rows::first(), Color::FG_BRIGHT_BLACK);
             } else {
                 table.modify(Columns::first(), Color::FG_BRIGHT_BLACK);
+                table.modify(Columns::last(), Color::FG_BRIGHT_WHITE);
                 table.modify(Rows::first(), Color::FG_BRIGHT_BLACK);
             }
-            println!("{}", table);
+
+            if let Some(output_path) = &cli.output {
+                if !output_path.as_os_str().is_empty() {
+                    copy_data(&file, output_path);
+                    println!("Copied Path: {}", output_path.display().red());
+                }
+            } else {
+                println!("{}", table);
+            }
         } else {
             println!("{}", "error:\nCan't read directory.".red());
         }
@@ -139,4 +158,12 @@ fn get_file_contents(file: &PathBuf, show_all: bool) -> (Vec<Index>, Vec<Context
     }
 
     (indices, contexts)
+}
+
+fn copy_data(file: &PathBuf, copy_content_location: &PathBuf) {
+    let content = std::fs::read(file).expect("error: can't read the file.");
+    let mut data_write = File::create(copy_content_location).expect("error: can not create file.");
+    data_write
+        .write_all(&content)
+        .expect("error: can not write content file.");
 }
