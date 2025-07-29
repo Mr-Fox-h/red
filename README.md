@@ -1,4 +1,4 @@
-# red 🐱
+# red 🛋️
 
 A simple `cat` clone written in Rust. `red` (short for "read") is a lightweight command-line tool to display file contents with optional line numbers and non-printable character visualization.
 
