@@ -5,7 +5,7 @@ A simple `cat` clone written in Rust. `red` (short for "read") is a lightweight 
 ## Usage
 If you want to read a file, just type `red <FILE NAME>`.
 
-```sh
+```bash
 $ red -h
 Usage: red [OPTIONS] [FILE]
 
@@ -22,7 +22,8 @@ Options:
 
 ## Installation
 
-1. Clone the repository:
-   ```sh
-   $ git clone https://github.com/Mr-Fox-h/red
-   ```
+Clone the repository or install that with `cargo`.
+### From source (requires Rust toolchain)
+```bash
+$ cargo install --git https://github.com/Mr-Fox-h/red
+```
